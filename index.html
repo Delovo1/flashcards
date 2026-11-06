@@ -1,300 +1,120 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0d1118" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <title>Карточки</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap"
-      rel="stylesheet"
-    />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              ui: ['"Bricolage Grotesque"', "system-ui", "sans-serif"],
-              word: ["Fraunces", "Georgia", "serif"],
-            },
-            colors: {
-              ink: "#0d1118",
-              panel: "#161c27",
-              line: "#252d3b",
-              accent: "#8b9bff",
-            },
-          },
-        },
-      };
-    </script>
-    <style>
-      body {
-        font-family: "Bricolage Grotesque", system-ui, sans-serif;
-        background: #0d1118;
-        color: #e8ecf4;
-      }
-      .scene {
-        perspective: 1400px;
-      }
-      .card3d {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        transform-style: preserve-3d;
-        transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-      }
-      .card3d.flipped {
-        transform: rotateY(180deg);
-      }
-      .face {
-        position: absolute;
-        inset: 0;
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border-radius: 28px;
-        padding: 1.5rem;
-        text-align: center;
-      }
-      .face-front {
-        background: #e9eefb;
-        color: #12172a;
-      }
-      .face-back {
-        background: #8b9bff;
-        color: #0b1030;
-        transform: rotateY(180deg);
-      }
-      .wrap {
-        transition:
-          transform 0.35s ease,
-          opacity 0.35s ease;
-      }
-      .out-left {
-        transform: translateX(-120%) rotate(-12deg);
-        opacity: 0;
-      }
-      .out-right {
-        transform: translateX(120%) rotate(12deg);
-        opacity: 0;
-      }
-      .in-new {
-        animation: appear 0.35s ease;
-      }
-      @keyframes appear {
-        from {
-          transform: scale(0.94);
-          opacity: 0;
-        }
-        to {
-          transform: none;
-          opacity: 1;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .card3d,
-        .wrap {
-          transition: none;
-        }
-        .in-new {
-          animation: none;
-        }
-      }
-      :focus-visible {
-        outline: 2px solid #8b9bff;
-        outline-offset: 2px;
-      }
-    </style>
-  </head>
-  <body class="min-h-screen font-ui">
-    <div id="app" class="max-w-3xl mx-auto px-4 py-6 sm:py-10"></div>
-
-    <!-- Окно добавления слов -->
-    <div
-      id="modal"
-      class="hidden fixed inset-0 z-50 bg-black/70 items-end sm:items-center justify-center p-0 sm:p-4"
-    >
-      <div
-        class="bg-panel border border-line w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-h-[90vh] flex flex-col"
-      >
-        <div class="flex items-start justify-between gap-3 mb-4">
-          <h2 id="modalTitle" class="text-xl font-bold"></h2>
-          <button
-            id="modalClose"
-            class="text-slate-400 hover:text-white text-2xl leading-none px-2"
-            aria-label="Закрыть"
-          >
-            ×
-          </button>
-        </div>
-        <div class="flex gap-1 bg-ink border border-line rounded-xl p-1 mb-4">
-          <button id="tabOne" class="flex-1 rounded-lg py-2 text-sm font-bold">
-            По одному
-          </button>
-          <button id="tabBulk" class="flex-1 rounded-lg py-2 text-sm font-bold">
-            Списком
-          </button>
-        </div>
-        <div id="paneOne">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              id="inEn"
-              type="text"
-              placeholder="English"
-              autocomplete="off"
-              autocapitalize="off"
-              class="bg-ink border border-line rounded-xl px-4 py-3 outline-none focus:border-accent"
-            />
-            <input
-              id="inRu"
-              type="text"
-              placeholder="Русский перевод"
-              autocomplete="off"
-              class="bg-ink border border-line rounded-xl px-4 py-3 outline-none focus:border-accent"
-            />
-          </div>
-          <button
-            id="btnAdd"
-            class="mt-3 w-full bg-accent text-ink font-bold rounded-xl py-3 hover:brightness-110 transition"
-          >
-            Добавить
-          </button>
-        </div>
-        <div id="paneBulk" class="hidden">
-          <textarea
-            id="bulkText"
-            rows="6"
-            spellcheck="false"
-            placeholder="realize - осознавать&#10;mess up - косячить&#10;figure out - разобраться"
-            class="w-full bg-ink border border-line rounded-xl px-4 py-3 outline-none focus:border-accent font-mono text-sm resize-y"
-          ></textarea>
-          <p class="text-xs text-slate-500 mt-2 leading-relaxed">
-            Одна строка — одно слово:
-            <code class="text-slate-300">english - перевод</code>. Разделитель:
-            « - », «—», «:», «=», «|», «;» или Tab. Подойдёт и JSON-массив:
-            <code class="text-slate-300"
-              >[["go","идти"], {"en":"run","ru":"бежать"}]</code
-            >. Повторы пропускаются.
-          </p>
-          <button
-            id="btnImport"
-            class="mt-3 w-full bg-accent text-ink font-bold rounded-xl py-3 hover:brightness-110 transition"
-          >
-            Добавить все
-          </button>
-        </div>
-        <p
-          id="modalHint"
-          class="text-sm text-slate-500 mt-3 min-h-[1.25rem]"
-        ></p>
-        <ul
-          id="wordList"
-          class="mt-1 overflow-y-auto divide-y divide-line"
-        ></ul>
-      </div>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d1118">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Карточки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { ui: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'], word: ['Fraunces', 'Georgia', 'serif'] },
+    colors: { ink: '#0d1118', panel: '#161c27', line: '#252d3b', accent: '#8b9bff' } } } };
+</script>
+<style>
+  body { font-family: "Bricolage Grotesque", system-ui, sans-serif; background: #0d1118; color: #e8ecf4; overscroll-behavior-x: none; }
+  .scene { perspective: 1400px; }
+  .card3d { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+  .card3d.flipped { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 28px; padding: 1.5rem; text-align: center; }
+  .face-front { background: #e9eefb; color: #12172a; }
+  .face-back { background: #8b9bff; color: #0b1030; transform: rotateY(180deg); }
+  .wrap { transition: transform .35s ease, opacity .35s ease; }
+  .out-left { transform: translateX(-120%) rotate(-12deg); opacity: 0; }
+  .out-right { transform: translateX(120%) rotate(12deg); opacity: 0; }
+  .in-new { animation: appear .35s ease; }
+  @keyframes appear { from { transform: scale(.94); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .card3d, .wrap { transition: none; } .in-new { animation: none; } }
+  :focus-visible { outline: 2px solid #8b9bff; outline-offset: 2px; }
+</style>
+</head>
+<body class="min-h-screen font-ui">
+<div id="app" class="max-w-3xl mx-auto px-4 py-6 sm:py-10"></div>
+ 
+<!-- Окно добавления слов -->
+<div id="modal" class="hidden fixed inset-0 z-50 bg-black/70 items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-panel border border-line w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-h-[90vh] flex flex-col">
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <h2 id="modalTitle" class="text-xl font-bold"></h2>
+      <button id="modalClose" class="text-slate-400 hover:text-white text-2xl leading-none px-2" aria-label="Закрыть">×</button>
     </div>
-
-    <script>
-      "use strict";
-
-      /* ============ НАСТРОЙКА: адрес вашего Worker (после деплоя) ============ */
-      const API_URL = "https://flashcards-api.delovo1.workers.dev";
-
-      /* ============ СОСТОЯНИЕ ============ */
-      const S = {
-        token: localStorage.getItem("fc.token"),
-        me: null,
-        topics: [],
-        pub: [],
-        q: "",
-        users: [],
-        newToken: null,
-        view: "topics", // topics | public | admin | study | done
-        back: "topics", // куда вернуться из режима учёбы
-        deck: null,
-        queue: [],
-        total: 0,
-        mode: "cards",
-        flipped: false,
-        busy: false,
-        checked: null,
-        modalId: null,
-      };
-      const $ = (s) => document.querySelector(s);
-      const app = $("#app");
-      const esc = (s) =>
-        String(s).replace(
-          /[&<>"']/g,
-          (c) =>
-            ({
-              "&": "&amp;",
-              "<": "&lt;",
-              ">": "&gt;",
-              '"': "&quot;",
-              "'": "&#39;",
-            })[c],
-        );
-      const fail = (e) => alert(e.message || "Ошибка");
-      function plural(n) {
-        const a = n % 10,
-          b = n % 100;
-        return a === 1 && b !== 11
-          ? "слово"
-          : a >= 2 && a <= 4 && (b < 12 || b > 14)
-            ? "слова"
-            : "слов";
-      }
-      function shuffle(arr) {
-        const a = [...arr];
-        for (let i = a.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [a[i], a[j]] = [a[j], a[i]];
-        }
-        return a;
-      }
-      const norm = (s) =>
-        s
-          .toLowerCase()
-          .replace(/[’`]/g, "'")
-          .replace(/[.!?,]+$/, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-      /* ============ ЗАПРОСЫ К СЕРВЕРУ ============ */
-      async function api(path, method = "GET", body) {
-        const r = await fetch(API_URL + path, {
-          method,
-          headers: {
-            Authorization: "Bearer " + S.token,
-            ...(body ? { "Content-Type": "application/json" } : {}),
-          },
-          body: body ? JSON.stringify(body) : undefined,
-        });
-        const data = await r.json().catch(() => ({}));
-        if (r.status === 401) {
-          logout();
-          throw new Error(data.error || "Нужен вход");
-        }
-        if (!r.ok) throw new Error(data.error || "Ошибка " + r.status);
-        return data;
-      }
-      function logout() {
-        localStorage.removeItem("fc.token");
-        S.token = null;
-        S.me = null;
-        renderLogin();
-      }
-
-      /* ============ ВХОД ============ */
-      function renderLogin(msg = "") {
-        app.innerHTML = `
+    <div class="flex gap-1 bg-ink border border-line rounded-xl p-1 mb-4">
+      <button id="tabOne" class="flex-1 rounded-lg py-2 text-sm font-bold">По одному</button>
+      <button id="tabBulk" class="flex-1 rounded-lg py-2 text-sm font-bold">Списком</button>
+    </div>
+    <div id="paneOne">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input id="inEn" type="text" placeholder="English" autocomplete="off" autocapitalize="off" class="bg-ink border border-line rounded-xl px-4 py-3 outline-none focus:border-accent">
+        <input id="inRu" type="text" placeholder="Русский перевод" autocomplete="off" class="bg-ink border border-line rounded-xl px-4 py-3 outline-none focus:border-accent">
+      </div>
+      <button id="btnAdd" class="mt-3 w-full bg-accent text-ink font-bold rounded-xl py-3 hover:brightness-110 transition">Добавить</button>
+    </div>
+    <div id="paneBulk" class="hidden">
+      <textarea id="bulkText" rows="6" spellcheck="false" placeholder="realize - осознавать&#10;mess up - косячить&#10;figure out - разобраться"
+        class="w-full bg-ink border border-line rounded-xl px-4 py-3 outline-none focus:border-accent font-mono text-sm resize-y"></textarea>
+      <p class="text-xs text-slate-500 mt-2 leading-relaxed">Одна строка — одно слово: <code class="text-slate-300">english - перевод</code>. Разделитель: « - », «—», «:», «=», «|», «;» или Tab. Подойдёт и JSON-массив: <code class="text-slate-300">[["go","идти"], {"en":"run","ru":"бежать"}]</code>. Повторы пропускаются.</p>
+      <button id="btnImport" class="mt-3 w-full bg-accent text-ink font-bold rounded-xl py-3 hover:brightness-110 transition">Добавить все</button>
+    </div>
+    <p id="modalHint" class="text-sm text-slate-500 mt-3 min-h-[1.25rem]"></p>
+    <ul id="wordList" class="mt-1 overflow-y-auto divide-y divide-line"></ul>
+  </div>
+</div>
+ 
+<script>
+'use strict';
+ 
+/* ============ НАСТРОЙКА: адрес вашего Worker (после деплоя) ============ */
+const API_URL = 'https://flashcards-api.delovo1.workers.dev';
+ 
+/* ============ СОСТОЯНИЕ ============ */
+const S = {
+  token: localStorage.getItem('fc.token'),
+  me: null, topics: [], pub: [], q: '', users: [], newToken: null,
+  view: 'topics',          // topics | public | admin | study | done
+  back: 'topics',          // куда вернуться из режима учёбы
+  deck: null, queue: [], total: 0, mode: 'cards', flipped: false, busy: false, checked: null,
+  modalId: null
+};
+const $ = s => document.querySelector(s);
+const app = $('#app');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fail = e => alert(e.message || 'Ошибка');
+function plural(n) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'слово' : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? 'слова' : 'слов'; }
+function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const norm = s => s.toLowerCase().replace(/[’`]/g, "'").replace(/[.!?,]+$/, '').replace(/\s+/g, ' ').trim();
+ 
+/* ============ ЗАПРОСЫ К СЕРВЕРУ ============ */
+async function api(path, method = 'GET', body) {
+  const opts = {
+    method,
+    headers: { Authorization: 'Bearer ' + S.token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined
+  };
+  // Нестабильная сеть: запросы на чтение пробуем до 3 раз, каждый с таймаутом 12 с.
+  // Запросы на запись не повторяем, чтобы не создать дубли.
+  let r;
+  for (let i = 0; i < (method === 'GET' ? 3 : 1) && !r; i++) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 12000);
+    try { r = await fetch(API_URL + path, { ...opts, signal: ctl.signal }); }
+    catch (e) { /* пробуем ещё раз */ }
+    finally { clearTimeout(timer); }
+  }
+  if (!r) throw new Error('Нет связи с сервером. Проверьте интернет или VPN.');
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401) { logout(); throw new Error(data.error || 'Нужен вход'); }
+  if (!r.ok) throw new Error(data.error || 'Ошибка ' + r.status);
+  return data;
+}
+function logout() { localStorage.removeItem('fc.token'); S.token = null; S.me = null; renderLogin(); }
+ 
+/* ============ ВХОД ============ */
+function renderLogin(msg = '') {
+  app.innerHTML = `
     <div class="max-w-sm mx-auto pt-20">
       <h1 class="font-word text-4xl font-bold mb-2">Карточки</h1>
       <p class="text-slate-400 mb-6">Введите токен, который вам выдали.</p>
@@ -304,334 +124,203 @@
       </form>
       <p class="text-red-400 text-sm mt-3">${esc(msg)}</p>
     </div>`;
-        $("#loginForm").onsubmit = async (e) => {
-          e.preventDefault();
-          S.token = $("#tok").value.trim();
-          try {
-            S.me = await api("/api/me");
-            localStorage.setItem("fc.token", S.token);
-            S.topics = await api("/api/topics");
-            goTab("topics");
-          } catch (err) {
-            S.token = null;
-            renderLogin(
-              err.message === "Failed to fetch"
-                ? "Нет связи с сервером"
-                : err.message,
-            );
-          }
-        };
-      }
-
-      async function boot() {
-        if (!S.token) return renderLogin();
-        try {
-          S.me = await api("/api/me");
-          S.topics = await api("/api/topics");
-          goTab("topics");
-        } catch (e) {
-          if (!S.token) return;
-          app.innerHTML = `<div class="text-center pt-24"><p class="text-slate-400 mb-4">Не удалось связаться с сервером.</p>
+  $('#loginForm').onsubmit = async e => {
+    e.preventDefault();
+    S.token = $('#tok').value.trim();
+    try {
+      S.me = await api('/api/me');
+      localStorage.setItem('fc.token', S.token);
+      S.topics = await api('/api/topics');
+      goTab('topics');
+    } catch (err) { S.token = null; renderLogin(err.message === 'Failed to fetch' ? 'Нет связи с сервером' : err.message); }
+  };
+}
+ 
+async function boot() {
+  if (!S.token) return renderLogin();
+  try { S.me = await api('/api/me'); S.topics = await api('/api/topics'); goTab('topics'); }
+  catch (e) {
+    if (!S.token) return;
+    app.innerHTML = `<div class="text-center pt-24"><p class="text-slate-400 mb-4">Не удалось связаться с сервером.</p>
       <button id="retry" class="bg-accent text-ink font-bold rounded-xl px-6 py-3">Повторить</button></div>`;
-          $("#retry").onclick = boot;
-        }
-      }
-
-      /* ============ КАРКАС И НАВИГАЦИЯ ============ */
-      function shell(inner) {
-        const tabs = [
-          ["topics", "Мои"],
-          ["public", "Публичные"],
-          ...(S.me.role === "admin" ? [["admin", "Админ"]] : []),
-        ]
-          .map(
-            ([k, l]) =>
-              `<button data-tab="${k}" class="flex-1 rounded-lg py-2 text-sm font-bold ${S.view === k ? "bg-accent text-ink" : "text-slate-400 hover:text-white"}">${l}</button>`,
-          )
-          .join("");
-        app.innerHTML = `
+    $('#retry').onclick = boot;
+  }
+}
+ 
+/* ============ КАРКАС И НАВИГАЦИЯ ============ */
+function shell(inner) {
+  const tabs = [['topics', 'Мои'], ['public', 'Публичные'], ...(S.me.role === 'admin' ? [['admin', 'Админ']] : [])]
+    .map(([k, l]) => `<button data-tab="${k}" class="flex-1 rounded-lg py-2 text-sm font-bold ${S.view === k ? 'bg-accent text-ink' : 'text-slate-400 hover:text-white'}">${l}</button>`).join('');
+  app.innerHTML = `
     <header class="flex items-center justify-between gap-3 mb-5">
       <h1 class="font-word text-3xl font-bold">Карточки</h1>
       <div class="flex items-center gap-3 text-sm text-slate-400"><span>${esc(S.me.name)}</span><button id="logout" class="hover:text-white">Выйти</button></div>
     </header>
-    <nav class="flex gap-1 bg-panel border border-line rounded-xl p-1 mb-6">${tabs}</nav>${inner}`;
-        $("#logout").onclick = logout;
-        app
-          .querySelectorAll("[data-tab]")
-          .forEach((b) => (b.onclick = () => goTab(b.dataset.tab)));
-      }
-      function goTab(v) {
-        S.view = v;
-        S.busy = false;
-        if (v === "topics") renderTopics();
-        else if (v === "public") {
-          renderPublic();
-          loadPublic();
-        } else renderAdmin();
-      }
-      function render() {
-        if (S.view === "study") renderStudy();
-        else if (S.view === "done") renderDone();
-        else goTab(S.view);
-      }
-
-      /* ============ МОИ ТЕМЫ ============ */
-      function renderTopics() {
-        const items = S.topics
-          .map(
-            (t) => `
+    <nav class="flex gap-1 bg-panel border border-line rounded-xl p-1 mb-6">${tabs}</nav><div id="pane">${inner}</div>`;
+  $('#logout').onclick = logout;
+  app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => goTab(b.dataset.tab));
+}
+const tabKeys = () => ['topics', 'public', ...(S.me && S.me.role === 'admin' ? ['admin'] : [])];
+function goTab(v) {
+  // Направление анимации: вправо, если новый раздел правее текущего
+  const keys = tabKeys(), from = keys.indexOf(S.view);
+  const dir = from >= 0 && v !== S.view ? (keys.indexOf(v) > from ? 1 : -1) : 0;
+  S.view = v; S.busy = false;
+  if (v === 'topics') renderTopics();
+  else if (v === 'public') { renderPublic(); loadPublic(); }
+  else renderAdmin();
+  const pane = $('#pane');
+  if (dir && pane && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+    pane.animate([{ transform: `translateX(${dir * 48}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+                 { duration: 220, easing: 'ease-out' });
+}
+function render() { if (S.view === 'study') renderStudy(); else if (S.view === 'done') renderDone(); else goTab(S.view); }
+ 
+/* ============ МОИ ТЕМЫ ============ */
+function renderTopics() {
+  const items = S.topics.map(t => `
     <li class="bg-panel border border-line rounded-2xl p-5 flex flex-col gap-4">
       <div class="flex items-start justify-between gap-2">
         <div><h3 class="text-lg font-bold leading-snug">${esc(t.name)}</h3><p class="text-slate-400 text-sm">${t.cards.length} ${plural(t.cards.length)}</p></div>
         <button data-del="${t.id}" class="text-slate-500 hover:text-red-400 text-sm">Удалить</button>
       </div>
-      <label class="flex items-center gap-2 text-sm text-slate-400 cursor-pointer"><input type="checkbox" data-pub="${t.id}" ${t.isPublic ? "checked" : ""}> Публичная (видна всем)</label>
+      <label class="flex items-center gap-2 text-sm text-slate-400 cursor-pointer"><input type="checkbox" data-pub="${t.id}" ${t.isPublic ? 'checked' : ''}> Публичная (видна всем)</label>
       <div class="grid grid-cols-2 gap-2 mt-auto">
-        <button data-learn="${t.id}" ${t.cards.length ? "" : "disabled"} class="bg-accent text-ink font-bold rounded-xl py-2.5 hover:brightness-110 transition disabled:opacity-30">Учить</button>
-        <button data-type="${t.id}" ${t.cards.length ? "" : "disabled"} class="border border-accent/60 text-accent font-bold rounded-xl py-2.5 hover:bg-accent/10 transition disabled:opacity-30">Писать</button>
+        <button data-learn="${t.id}" ${t.cards.length ? '' : 'disabled'} class="bg-accent text-ink font-bold rounded-xl py-2.5 hover:brightness-110 transition disabled:opacity-30">Учить</button>
+        <button data-type="${t.id}" ${t.cards.length ? '' : 'disabled'} class="border border-accent/60 text-accent font-bold rounded-xl py-2.5 hover:bg-accent/10 transition disabled:opacity-30">Писать</button>
         <button data-addwords="${t.id}" class="col-span-2 border border-line rounded-xl py-2.5 hover:border-accent hover:text-accent transition">Добавить слова</button>
       </div>
-    </li>`,
-          )
-          .join("");
-        shell(`
+    </li>`).join('');
+  shell(`
     <form id="topicForm" class="flex flex-col sm:flex-row gap-3 mb-6">
       <input id="topicName" type="text" placeholder="Название темы" maxlength="60" required class="flex-1 bg-panel border border-line rounded-xl px-4 py-3 outline-none focus:border-accent">
       <button class="bg-accent text-ink font-bold rounded-xl px-6 py-3 hover:brightness-110 transition">Создать тему</button>
     </form>
-    ${
-      S.topics.length
-        ? `<ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">${items}</ul>`
-        : `<p class="text-slate-400 border border-dashed border-line rounded-2xl p-8 text-center">Тем пока нет. Создайте свою или скопируйте из раздела «Публичные».</p>`
-    }`);
-
-        $("#topicForm").onsubmit = async (e) => {
-          e.preventDefault();
-          try {
-            S.topics.push(
-              await api("/api/topics", "POST", { name: $("#topicName").value }),
-            );
-            renderTopics();
-          } catch (err) {
-            fail(err);
-          }
-        };
-        const byId = (id) => S.topics.find((t) => t.id === id);
-        app
-          .querySelectorAll("[data-learn]")
-          .forEach(
-            (b) =>
-              (b.onclick = () =>
-                startStudy(byId(b.dataset.learn), "cards", "topics")),
-          );
-        app
-          .querySelectorAll("[data-type]")
-          .forEach(
-            (b) =>
-              (b.onclick = () =>
-                startStudy(byId(b.dataset.type), "type", "topics")),
-          );
-        app
-          .querySelectorAll("[data-addwords]")
-          .forEach((b) => (b.onclick = () => openModal(b.dataset.addwords)));
-        app.querySelectorAll("[data-pub]").forEach(
-          (c) =>
-            (c.onchange = async () => {
-              try {
-                await api("/api/topics/" + c.dataset.pub, "PATCH", {
-                  isPublic: c.checked,
-                });
-                byId(c.dataset.pub).isPublic = c.checked;
-              } catch (err) {
-                c.checked = !c.checked;
-                fail(err);
-              }
-            }),
-        );
-        app.querySelectorAll("[data-del]").forEach(
-          (b) =>
-            (b.onclick = async () => {
-              const t = byId(b.dataset.del);
-              if (!confirm(`Удалить тему «${t.name}» вместе со словами?`))
-                return;
-              try {
-                await api("/api/topics/" + t.id, "DELETE");
-                S.topics = S.topics.filter((x) => x.id !== t.id);
-                renderTopics();
-              } catch (err) {
-                fail(err);
-              }
-            }),
-        );
-      }
-
-      /* ============ ПУБЛИЧНЫЕ (с поиском) ============ */
-      function renderPublic() {
-        shell(`
+    ${S.topics.length ? `<ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">${items}</ul>`
+      : `<p class="text-slate-400 border border-dashed border-line rounded-2xl p-8 text-center">Тем пока нет. Создайте свою или скопируйте из раздела «Публичные».</p>`}`);
+ 
+  $('#topicForm').onsubmit = async e => {
+    e.preventDefault();
+    try { S.topics.push(await api('/api/topics', 'POST', { name: $('#topicName').value })); renderTopics(); } catch (err) { fail(err); }
+  };
+  const byId = id => S.topics.find(t => t.id === id);
+  app.querySelectorAll('[data-learn]').forEach(b => b.onclick = () => startStudy(byId(b.dataset.learn), 'cards', 'topics'));
+  app.querySelectorAll('[data-type]').forEach(b => b.onclick = () => startStudy(byId(b.dataset.type), 'type', 'topics'));
+  app.querySelectorAll('[data-addwords]').forEach(b => b.onclick = () => openModal(b.dataset.addwords));
+  app.querySelectorAll('[data-pub]').forEach(c => c.onchange = async () => {
+    try { await api('/api/topics/' + c.dataset.pub, 'PATCH', { isPublic: c.checked }); byId(c.dataset.pub).isPublic = c.checked; }
+    catch (err) { c.checked = !c.checked; fail(err); }
+  });
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    const t = byId(b.dataset.del);
+    if (!confirm(`Удалить тему «${t.name}» вместе со словами?`)) return;
+    try { await api('/api/topics/' + t.id, 'DELETE'); S.topics = S.topics.filter(x => x.id !== t.id); renderTopics(); } catch (err) { fail(err); }
+  });
+}
+ 
+/* ============ ПУБЛИЧНЫЕ (с поиском) ============ */
+function renderPublic() {
+  shell(`
     <input id="search" type="search" placeholder="Поиск по названию или автору" value="${esc(S.q)}" autocomplete="off"
       class="w-full bg-panel border border-line rounded-xl px-4 py-3 outline-none focus:border-accent mb-5">
     <ul id="pubList" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></ul>`);
-        fillPublic();
-        let timer;
-        $("#search").oninput = (e) => {
-          S.q = e.target.value;
-          clearTimeout(timer);
-          timer = setTimeout(loadPublic, 300);
-        }; // пауза 300 мс
-        $("#pubList").onclick = async (e) => {
-          const b = e.target.closest("button[data-act]");
-          if (!b) return;
-          const id = b.dataset.id,
-            act = b.dataset.act;
-          try {
-            if (act === "learn" || act === "type") {
-              const d = await api("/api/public/" + id);
-              startStudy(d, act === "learn" ? "cards" : "type", "public");
-            } else if (act === "copy") {
-              S.topics.push(await api("/api/public/" + id + "/copy", "POST"));
-              b.textContent = "Скопировано";
-              b.disabled = true;
-            } else if (act === "hide") {
-              await api("/api/admin/topics/" + id, "PATCH", {
-                hidden: b.dataset.v === "1",
-              });
-              loadPublic();
-            } else if (act === "del" && confirm("Удалить группу у всех?")) {
-              await api("/api/topics/" + id, "DELETE");
-              S.topics = S.topics.filter((t) => t.id !== id);
-              loadPublic();
-            }
-          } catch (err) {
-            fail(err);
-          }
-        };
-      }
-      async function loadPublic() {
-        try {
-          S.pub = await api("/api/public?q=" + encodeURIComponent(S.q));
-        } catch (e) {
-          return fail(e);
-        }
-        if (S.view === "public") fillPublic();
-      }
-      function fillPublic() {
-        const admin = S.me.role === "admin";
-        $("#pubList").innerHTML = S.pub.length
-          ? S.pub
-              .map(
-                (t) => `
-    <li class="bg-panel border border-line rounded-2xl p-5 flex flex-col gap-3 ${t.hidden ? "opacity-50" : ""}">
+  fillPublic();
+  let timer;
+  $('#search').oninput = e => { S.q = e.target.value; clearTimeout(timer); timer = setTimeout(loadPublic, 300); };   // пауза 300 мс
+  $('#pubList').onclick = async e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const id = b.dataset.id, act = b.dataset.act;
+    try {
+      if (act === 'learn' || act === 'type') { const d = await api('/api/public/' + id); startStudy(d, act === 'learn' ? 'cards' : 'type', 'public'); }
+      else if (act === 'copy') { S.topics.push(await api('/api/public/' + id + '/copy', 'POST')); b.textContent = 'Скопировано'; b.disabled = true; }
+      else if (act === 'hide') { await api('/api/admin/topics/' + id, 'PATCH', { hidden: b.dataset.v === '1' }); loadPublic(); }
+      else if (act === 'del' && confirm('Удалить группу у всех?')) { await api('/api/topics/' + id, 'DELETE'); S.topics = S.topics.filter(t => t.id !== id); loadPublic(); }
+    } catch (err) { fail(err); }
+  };
+}
+async function loadPublic() {
+  try { S.pub = await api('/api/public?q=' + encodeURIComponent(S.q)); }
+  catch (e) {
+    if (S.view === 'public' && $('#pubList')) {
+      $('#pubList').innerHTML = `<li class="sm:col-span-2 text-center border border-dashed border-red-500/50 rounded-2xl p-8"><p class="text-red-400 mb-3">${esc(e.message)}</p><button id="retryPub" class="bg-accent text-ink font-bold rounded-xl px-5 py-2">Повторить</button></li>`;
+      $('#retryPub').onclick = loadPublic;
+    }
+    return;
+  }
+  if (S.view === 'public') fillPublic();
+}
+function fillPublic() {
+  const admin = S.me.role === 'admin';
+  $('#pubList').innerHTML = S.pub.length ? S.pub.map(t => `
+    <li class="bg-panel border border-line rounded-2xl p-5 flex flex-col gap-3 ${t.hidden ? 'opacity-50' : ''}">
       <div><h3 class="text-lg font-bold leading-snug">${esc(t.name)}</h3>
-        <p class="text-slate-400 text-sm">Автор: ${esc(t.author)}, ${t.count} ${plural(t.count)}${t.hidden ? ", скрыта" : ""}</p></div>
+        <p class="text-slate-400 text-sm">Автор: ${esc(t.author)}, ${t.count} ${plural(t.count)}${t.hidden ? ', скрыта' : ''}</p></div>
       <div class="grid grid-cols-2 gap-2 mt-auto">
         <button data-act="learn" data-id="${t.id}" class="bg-accent text-ink font-bold rounded-xl py-2.5 hover:brightness-110 transition">Учить</button>
         <button data-act="type" data-id="${t.id}" class="border border-accent/60 text-accent font-bold rounded-xl py-2.5 hover:bg-accent/10 transition">Писать</button>
         <button data-act="copy" data-id="${t.id}" class="col-span-2 border border-line rounded-xl py-2.5 hover:border-accent hover:text-accent transition disabled:opacity-40">Копировать себе</button>
-        ${
-          admin
-            ? `<button data-act="hide" data-id="${t.id}" data-v="${t.hidden ? 0 : 1}" class="border border-line rounded-xl py-2 text-sm text-slate-400 hover:text-white">${t.hidden ? "Показать" : "Скрыть"}</button>
-                   <button data-act="del" data-id="${t.id}" class="border border-line rounded-xl py-2 text-sm text-slate-400 hover:text-red-400">Удалить</button>`
-            : ""
-        }
+        ${admin ? `<button data-act="hide" data-id="${t.id}" data-v="${t.hidden ? 0 : 1}" class="border border-line rounded-xl py-2 text-sm text-slate-400 hover:text-white">${t.hidden ? 'Показать' : 'Скрыть'}</button>
+                   <button data-act="del" data-id="${t.id}" class="border border-line rounded-xl py-2 text-sm text-slate-400 hover:text-red-400">Удалить</button>` : ''}
       </div>
-    </li>`,
-              )
-              .join("")
-          : `<li class="sm:col-span-2 text-slate-400 border border-dashed border-line rounded-2xl p-8 text-center">${S.q ? "Ничего не найдено." : "Публичных групп пока нет."}</li>`;
-      }
-
-      /* ============ АДМИН ============ */
-      async function renderAdmin() {
-        shell(`<div id="adm" class="text-slate-400">Загрузка…</div>`);
-        try {
-          S.users = await api("/api/admin/users");
-        } catch (e) {
-          return fail(e);
-        }
-        if (S.view !== "admin") return;
-        $("#adm").outerHTML = `<div id="adm">
+    </li>`).join('') : `<li class="sm:col-span-2 text-slate-400 border border-dashed border-line rounded-2xl p-8 text-center">${S.q ? 'Ничего не найдено.' : 'Публичных групп пока нет.'}</li>`;
+}
+ 
+/* ============ АДМИН ============ */
+async function renderAdmin() {
+  shell(`<div id="adm" class="text-slate-400">Загрузка…</div>`);
+  try { S.users = await api('/api/admin/users'); }
+  catch (e) {
+    if (S.view === 'admin' && $('#adm')) {
+      $('#adm').innerHTML = `<p class="text-red-400 mb-3">${esc(e.message)}</p><button id="retryAdm" class="bg-accent text-ink font-bold rounded-xl px-5 py-2">Повторить</button>`;
+      $('#retryAdm').onclick = renderAdmin;
+    }
+    return;
+  }
+  if (S.view !== 'admin') return;
+  $('#adm').outerHTML = `<div id="adm">
     <form id="userForm" class="flex flex-col sm:flex-row gap-3 mb-5">
       <input id="userName" type="text" placeholder="Имя человека" maxlength="40" required class="flex-1 bg-panel border border-line rounded-xl px-4 py-3 outline-none focus:border-accent">
       <button class="bg-accent text-ink font-bold rounded-xl px-6 py-3 hover:brightness-110 transition">Выдать токен</button>
     </form>
-    ${
-      S.newToken
-        ? `<div class="bg-panel border border-accent rounded-2xl p-4 mb-5"><p class="text-sm text-slate-400 mb-1">Токен для «${esc(S.newToken.name)}» показан один раз. Скопируйте и отправьте человеку:</p>
-      <code class="block break-all text-accent select-all">${esc(S.newToken.token)}</code></div>`
-        : ""
-    }
-    <ul class="divide-y divide-line bg-panel border border-line rounded-2xl">${S.users
-      .map(
-        (u) => `
+    ${S.newToken ? `<div class="bg-panel border border-accent rounded-2xl p-4 mb-5"><p class="text-sm text-slate-400 mb-1">Токен для «${esc(S.newToken.name)}» показан один раз. Скопируйте и отправьте человеку:</p>
+      <code class="block break-all text-accent select-all">${esc(S.newToken.token)}</code></div>` : ''}
+    <ul class="divide-y divide-line bg-panel border border-line rounded-2xl">${S.users.map(u => `
       <li class="flex items-center justify-between gap-3 px-4 py-3">
-        <span class="${u.revoked ? "line-through text-slate-500" : ""}">${esc(u.name)} <span class="text-slate-500 text-sm">${u.role === "admin" ? "админ" : u.revoked ? "отозван" : ""}</span></span>
-        ${u.role !== "admin" && !u.revoked ? `<button data-rev="${u.id}" class="text-sm text-slate-400 hover:text-red-400">Отозвать</button>` : ""}
-      </li>`,
-      )
-      .join("")}</ul></div>`;
-        $("#userForm").onsubmit = async (e) => {
-          e.preventDefault();
-          try {
-            S.newToken = await api("/api/admin/users", "POST", {
-              name: $("#userName").value,
-            });
-            renderAdmin();
-          } catch (err) {
-            fail(err);
-          }
-        };
-        app.querySelectorAll("[data-rev]").forEach(
-          (b) =>
-            (b.onclick = async () => {
-              if (!confirm("Отозвать токен? Человек потеряет доступ.")) return;
-              try {
-                await api("/api/admin/users/" + b.dataset.rev, "DELETE");
-                S.newToken = null;
-                renderAdmin();
-              } catch (err) {
-                fail(err);
-              }
-            }),
-        );
-      }
-
-      /* ============ УЧЁБА ============ */
-      function startStudy(deck, mode, back) {
-        if (!deck || !deck.cards.length) return;
-        Object.assign(S, {
-          deck,
-          mode,
-          back,
-          queue: shuffle(deck.cards),
-          total: deck.cards.length,
-          flipped: false,
-          busy: false,
-          checked: null,
-          view: "study",
-        });
-        renderStudy();
-      }
-      function goBack() {
-        goTab(S.back);
-      }
-      function header(percent) {
-        return `<div class="flex items-center justify-between mb-3">
+        <span class="${u.revoked ? 'line-through text-slate-500' : ''}">${esc(u.name)} <span class="text-slate-500 text-sm">${u.role === 'admin' ? 'админ' : u.revoked ? 'отозван' : ''}</span></span>
+        ${u.role !== 'admin' && !u.revoked ? `<button data-rev="${u.id}" class="text-sm text-slate-400 hover:text-red-400">Отозвать</button>` : ''}
+      </li>`).join('')}</ul></div>`;
+  $('#userForm').onsubmit = async e => {
+    e.preventDefault();
+    try { S.newToken = await api('/api/admin/users', 'POST', { name: $('#userName').value }); renderAdmin(); } catch (err) { fail(err); }
+  };
+  app.querySelectorAll('[data-rev]').forEach(b => b.onclick = async () => {
+    if (!confirm('Отозвать токен? Человек потеряет доступ.')) return;
+    try { await api('/api/admin/users/' + b.dataset.rev, 'DELETE'); S.newToken = null; renderAdmin(); } catch (err) { fail(err); }
+  });
+}
+ 
+/* ============ УЧЁБА ============ */
+function startStudy(deck, mode, back) {
+  if (!deck || !deck.cards.length) return;
+  Object.assign(S, { deck, mode, back, queue: shuffle(deck.cards), total: deck.cards.length, flipped: false, busy: false, checked: null, view: 'study' });
+  renderStudy();
+}
+function goBack() { goTab(S.back); }
+function header(percent) {
+  return `<div class="flex items-center justify-between mb-3">
       <button id="back" class="text-slate-400 hover:text-white transition">← Назад к темам</button>
       <span class="text-sm text-slate-400">Осталось слов: <b class="text-white">${S.queue.length}</b> из ${S.total}</span></div>
     <div class="h-1.5 bg-line rounded-full overflow-hidden mb-2"><div class="h-full bg-accent transition-all duration-500" style="width:${percent}%"></div></div>
     <p class="text-slate-500 text-sm mb-6">${esc(S.deck.name)}</p>`;
-      }
-      const pct = () =>
-        Math.round(((S.total - S.queue.length) / S.total) * 100);
-
-      function renderStudy() {
-        if (S.mode === "type") return renderType();
-        const card = S.queue[0];
-        app.innerHTML =
-          header(pct()) +
-          `
+}
+const pct = () => Math.round(((S.total - S.queue.length) / S.total) * 100);
+ 
+function renderStudy() {
+  if (S.mode === 'type') return renderType();
+  const card = S.queue[0];
+  app.innerHTML = header(pct()) + `
     <div id="wrap" class="wrap in-new"><div class="scene h-[48vh] min-h-[280px] max-h-[420px] cursor-pointer" id="scene">
-      <div class="card3d ${S.flipped ? "flipped" : ""}" id="card3d">
+      <div class="card3d ${S.flipped ? 'flipped' : ''}" id="card3d">
         <div class="face face-front shadow-2xl shadow-black/50"><span class="font-word font-bold text-4xl sm:text-6xl break-words max-w-full">${esc(card.en)}</span>
           <span class="text-sm text-slate-500 mt-6">Нажмите, чтобы увидеть перевод</span></div>
         <div class="face face-back shadow-2xl shadow-black/50"><span class="font-word font-bold text-3xl sm:text-5xl break-words max-w-full">${esc(card.ru)}</span>
@@ -642,94 +331,65 @@
       <button id="btnNo" class="bg-red-500/90 hover:bg-red-500 text-white font-bold text-lg rounded-2xl py-5 transition active:scale-95">← Не знаю</button>
       <button id="btnYes" class="bg-emerald-500/90 hover:bg-emerald-500 text-white font-bold text-lg rounded-2xl py-5 transition active:scale-95">Знаю →</button></div>
     <p class="hidden sm:block text-center text-xs text-slate-600 mt-4">Пробел — перевернуть · ← не знаю · → знаю</p>`;
-        $("#back").onclick = goBack;
-        $("#scene").onclick = flipCard;
-        $("#flipBtn").onclick = flipCard;
-        $("#btnNo").onclick = () => answer(false);
-        $("#btnYes").onclick = () => answer(true);
-      }
-      function flipCard() {
-        if (S.busy) return;
-        S.flipped = !S.flipped;
-        $("#card3d").classList.toggle("flipped", S.flipped);
-        $("#flipBtn").textContent = S.flipped
-          ? "Скрыть перевод"
-          : "Показать перевод";
-      }
-      function answer(known) {
-        if (S.busy || S.view !== "study") return;
-        S.busy = true;
-        $("#wrap").classList.remove("in-new");
-        $("#wrap").classList.add(known ? "out-right" : "out-left");
-        setTimeout(() => {
-          const cur = S.queue.shift();
-          if (!known) S.queue.push(cur); // «Не знаю» — в конец очереди
-          S.flipped = false;
-          S.busy = false;
-          if (!S.queue.length) {
-            S.view = "done";
-            renderDone();
-          } else renderStudy();
-        }, 320);
-      }
-
-      /* Режим «впиши английское слово» */
-      function renderType() {
-        const card = S.queue[0],
-          res = S.checked;
-        const fb = !res
-          ? ""
-          : res.ok
-            ? `<p class="text-emerald-400 font-bold mt-4">Верно!</p>`
-            : `<p class="text-red-400 mt-4">Правильно: <b class="text-white font-word text-xl">${esc(card.en)}</b></p>`;
-        app.innerHTML =
-          header(pct()) +
-          `
+  $('#back').onclick = goBack; $('#scene').onclick = flipCard; $('#flipBtn').onclick = flipCard;
+  $('#btnNo').onclick = () => answer(false); $('#btnYes').onclick = () => answer(true);
+}
+function flipCard() {
+  if (S.busy) return;
+  S.flipped = !S.flipped;
+  $('#card3d').classList.toggle('flipped', S.flipped);
+  $('#flipBtn').textContent = S.flipped ? 'Скрыть перевод' : 'Показать перевод';
+}
+function answer(known) {
+  if (S.busy || S.view !== 'study') return;
+  S.busy = true;
+  $('#wrap').classList.remove('in-new'); $('#wrap').classList.add(known ? 'out-right' : 'out-left');
+  setTimeout(() => {
+    const cur = S.queue.shift();
+    if (!known) S.queue.push(cur);                 // «Не знаю» — в конец очереди
+    S.flipped = false; S.busy = false;
+    if (!S.queue.length) { S.view = 'done'; renderDone(); } else renderStudy();
+  }, 320);
+}
+ 
+/* Режим «впиши английское слово» */
+function renderType() {
+  const card = S.queue[0], res = S.checked;
+  const fb = !res ? '' : res.ok ? `<p class="text-emerald-400 font-bold mt-4">Верно!</p>`
+    : `<p class="text-red-400 mt-4">Правильно: <b class="text-white font-word text-xl">${esc(card.en)}</b></p>`;
+  app.innerHTML = header(pct()) + `
     <div class="bg-accent text-[#0b1030] rounded-[28px] p-6 min-h-[220px] flex items-center justify-center text-center shadow-2xl shadow-black/50 in-new">
       <span class="font-word font-bold text-3xl sm:text-5xl break-words max-w-full">${esc(card.ru)}</span></div>
-    <input id="typeIn" type="text" value="${res ? esc(res.typed) : ""}" ${res ? "disabled" : ""} placeholder="English" autocomplete="off" autocapitalize="off" spellcheck="false"
-      class="mt-5 w-full bg-panel border-2 rounded-xl px-4 py-4 text-lg outline-none ${res ? (res.ok ? "border-emerald-500" : "border-red-500") : "border-line focus:border-accent"}">
+    <input id="typeIn" type="text" value="${res ? esc(res.typed) : ''}" ${res ? 'disabled' : ''} placeholder="English" autocomplete="off" autocapitalize="off" spellcheck="false"
+      class="mt-5 w-full bg-panel border-2 rounded-xl px-4 py-4 text-lg outline-none ${res ? (res.ok ? 'border-emerald-500' : 'border-red-500') : 'border-line focus:border-accent'}">
     ${fb}
-    <div class="grid grid-cols-2 gap-4 mt-5">${
-      res
-        ? `<button id="nextBtn" class="col-span-2 bg-accent text-ink font-bold text-lg rounded-2xl py-4 hover:brightness-110 transition">Дальше</button>`
-        : `<button id="giveUp" class="border border-red-500/70 text-red-400 font-bold rounded-2xl py-4 hover:bg-red-500/10 transition">Не знаю</button>
-         <button id="checkBtn" class="bg-emerald-500/90 hover:bg-emerald-500 text-white font-bold rounded-2xl py-4 transition">Проверить</button>`
-    }</div>`;
-        $("#back").onclick = goBack;
-        if (res) {
-          $("#nextBtn").onclick = nextTyped;
-          $("#nextBtn").focus();
-        } else {
-          $("#checkBtn").onclick = () => checkTyped(false);
-          $("#giveUp").onclick = () => checkTyped(true);
-          $("#typeIn").addEventListener("keydown", (e) => {
-            if (e.key === "Enter") checkTyped(false);
-          });
-          $("#typeIn").focus();
-        }
-      }
-      function checkTyped(giveUp) {
-        const typed = giveUp ? "" : $("#typeIn").value;
-        if (!giveUp && !typed.trim()) return $("#typeIn").focus();
-        S.checked = {
-          ok: !giveUp && norm(typed) === norm(S.queue[0].en),
-          typed,
-        };
-        renderType();
-      }
-      function nextTyped() {
-        const cur = S.queue.shift();
-        if (!S.checked.ok) S.queue.push(cur);
-        S.checked = null;
-        if (!S.queue.length) {
-          S.view = "done";
-          renderDone();
-        } else renderType();
-      }
-
-      function renderDone() {
-        app.innerHTML = `
+    <div class="grid grid-cols-2 gap-4 mt-5">${res
+      ? `<button id="nextBtn" class="col-span-2 bg-accent text-ink font-bold text-lg rounded-2xl py-4 hover:brightness-110 transition">Дальше</button>`
+      : `<button id="giveUp" class="border border-red-500/70 text-red-400 font-bold rounded-2xl py-4 hover:bg-red-500/10 transition">Не знаю</button>
+         <button id="checkBtn" class="bg-emerald-500/90 hover:bg-emerald-500 text-white font-bold rounded-2xl py-4 transition">Проверить</button>`}</div>`;
+  $('#back').onclick = goBack;
+  if (res) { $('#nextBtn').onclick = nextTyped; $('#nextBtn').focus(); }
+  else {
+    $('#checkBtn').onclick = () => checkTyped(false); $('#giveUp').onclick = () => checkTyped(true);
+    $('#typeIn').addEventListener('keydown', e => { if (e.key === 'Enter') checkTyped(false); });
+    $('#typeIn').focus();
+  }
+}
+function checkTyped(giveUp) {
+  const typed = giveUp ? '' : $('#typeIn').value;
+  if (!giveUp && !typed.trim()) return $('#typeIn').focus();
+  S.checked = { ok: !giveUp && norm(typed) === norm(S.queue[0].en), typed };
+  renderType();
+}
+function nextTyped() {
+  const cur = S.queue.shift();
+  if (!S.checked.ok) S.queue.push(cur);
+  S.checked = null;
+  if (!S.queue.length) { S.view = 'done'; renderDone(); } else renderType();
+}
+ 
+function renderDone() {
+  app.innerHTML = `
     <div class="text-center py-16 sm:py-24">
       <div class="mx-auto w-24 h-24 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-5xl mb-6 in-new">✓</div>
       <h1 class="font-word text-4xl sm:text-5xl font-bold">Тренировка завершена</h1>
@@ -737,208 +397,134 @@
       <div class="flex flex-col sm:flex-row gap-3 justify-center mt-10">
         <button id="again" class="bg-accent text-ink font-bold rounded-xl px-8 py-3 hover:brightness-110 transition">Повторить снова</button>
         <button id="home" class="border border-line rounded-xl px-8 py-3 hover:border-accent hover:text-accent transition">На главную</button></div></div>`;
-        $("#again").onclick = () => startStudy(S.deck, S.mode, S.back);
-        $("#home").onclick = goBack;
-      }
-
-      /* ============ ДОБАВЛЕНИЕ СЛОВ (окно) ============ */
-      const modal = $("#modal"),
-        inEn = $("#inEn"),
-        inRu = $("#inRu"),
-        hint = (t) => ($("#modalHint").textContent = t);
-      const curTopic = () => S.topics.find((t) => t.id === S.modalId);
-
-      function openModal(id) {
-        S.modalId = id;
-        $("#modalTitle").textContent = "Новые слова: " + curTopic().name;
-        inEn.value = inRu.value = $("#bulkText").value = "";
-        renderWordList();
-        modal.classList.remove("hidden");
-        modal.classList.add("flex");
-        showTab("one");
-      }
-      function closeModal() {
-        modal.classList.add("hidden");
-        modal.classList.remove("flex");
-        S.modalId = null;
-        if (S.view === "topics") renderTopics();
-      }
-      function renderWordList() {
-        const t = curTopic();
-        $("#wordList").innerHTML = [...t.cards]
-          .reverse()
-          .map(
-            (c) => `
+  $('#again').onclick = () => startStudy(S.deck, S.mode, S.back);
+  $('#home').onclick = goBack;
+}
+ 
+/* ============ ДОБАВЛЕНИЕ СЛОВ (окно) ============ */
+const modal = $('#modal'), inEn = $('#inEn'), inRu = $('#inRu'), hint = t => $('#modalHint').textContent = t;
+const curTopic = () => S.topics.find(t => t.id === S.modalId);
+ 
+function openModal(id) {
+  S.modalId = id;
+  $('#modalTitle').textContent = 'Новые слова: ' + curTopic().name;
+  inEn.value = inRu.value = $('#bulkText').value = '';
+  renderWordList();
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  showTab('one');
+}
+function closeModal() {
+  modal.classList.add('hidden'); modal.classList.remove('flex'); S.modalId = null;
+  if (S.view === 'topics') renderTopics();
+}
+function renderWordList() {
+  const t = curTopic();
+  $('#wordList').innerHTML = [...t.cards].reverse().map(c => `
     <li class="flex items-center justify-between gap-3 py-2"><span class="min-w-0 break-words"><b>${esc(c.en)}</b> <span class="text-slate-400">— ${esc(c.ru)}</span></span>
-    <button data-rm="${c.id}" class="text-slate-500 hover:text-red-400 text-lg px-2" aria-label="Удалить слово">×</button></li>`,
-          )
-          .join("");
-        $("#wordList")
-          .querySelectorAll("[data-rm]")
-          .forEach(
-            (b) =>
-              (b.onclick = async () => {
-                try {
-                  await api("/api/cards/" + b.dataset.rm, "DELETE");
-                  t.cards = t.cards.filter((c) => c.id !== b.dataset.rm);
-                  renderWordList();
-                } catch (e) {
-                  fail(e);
-                }
-              }),
-          );
-      }
-      function showTab(which) {
-        const bulk = which === "bulk";
-        $("#paneOne").classList.toggle("hidden", bulk);
-        $("#paneBulk").classList.toggle("hidden", !bulk);
-        $("#tabOne").className =
-          "flex-1 rounded-lg py-2 text-sm font-bold " +
-          (bulk ? "text-slate-400 hover:text-white" : "bg-accent text-ink");
-        $("#tabBulk").className =
-          "flex-1 rounded-lg py-2 text-sm font-bold " +
-          (bulk ? "bg-accent text-ink" : "text-slate-400 hover:text-white");
-        hint("");
-        (bulk ? $("#bulkText") : inEn).focus();
-      }
-      /** Отправка слов на сервер: пропускает повторы, шлёт пачками по 400 */
-      async function addWords(pairs) {
-        const t = curTopic(),
-          have = new Set(t.cards.map((c) => c.en.toLowerCase())),
-          fresh = [];
-        let dup = 0;
-        pairs.forEach((p) => {
-          const k = p.en.toLowerCase();
-          if (have.has(k)) dup++;
-          else {
-            have.add(k);
-            fresh.push(p);
-          }
-        });
-        for (let i = 0; i < fresh.length; i += 400) {
-          const r = await api("/api/topics/" + t.id + "/cards", "POST", {
-            cards: fresh.slice(i, i + 400),
-          });
-          t.cards.push(...r.cards);
-        }
-        renderWordList();
-        return { added: fresh.length, dup };
-      }
-      async function addWord() {
-        const en = inEn.value.trim(),
-          ru = inRu.value.trim();
-        if (!en || !ru) {
-          hint("Заполните оба поля.");
-          return (en ? inRu : inEn).focus();
-        }
-        try {
-          const r = await addWords([{ en, ru }]);
-          hint(r.dup ? "Такое слово уже есть." : "Добавлено: " + en);
-          inEn.value = inRu.value = "";
-        } catch (e) {
-          hint(e.message);
-        }
-        inEn.focus(); // сразу вводим следующее слово
-      }
-      /** Разбор списка: строки «слово - перевод» или JSON */
-      function parseBulk(text) {
-        const pairs = [],
-          bad = [],
-          t = text.trim();
-        const push = (en, ru, src) => {
-          en = String(en ?? "").trim();
-          ru = String(ru ?? "").trim();
-          if (en && ru) pairs.push({ en, ru });
-          else bad.push(src);
-        };
-        if (t.startsWith("[") || t.startsWith("{")) {
-          try {
-            const d = JSON.parse(t);
-            if (Array.isArray(d))
-              d.forEach((it) =>
-                Array.isArray(it)
-                  ? push(it[0], it[1], JSON.stringify(it))
-                  : it && typeof it === "object"
-                    ? push(
-                        it.en ?? it.english ?? it.word,
-                        it.ru ?? it.translation,
-                        JSON.stringify(it),
-                      )
-                    : bad.push(String(it)),
-              );
-            else if (d && (d.en || d.ru)) push(d.en, d.ru, t);
-            else if (d && typeof d === "object")
-              Object.entries(d).forEach(([k, v]) => push(k, v, k));
-            return { pairs, bad };
-          } catch (e) {
-            /* не JSON — читаем как строки */
-          }
-        }
-        const SEP = /\t|\s*[|;=:—–]\s*|\s+-\s+/;
-        t.split(/\r?\n/).forEach((raw) => {
-          const line = raw.trim().replace(/^(\d+[.)]|[-*•])\s+/, "");
-          if (!line) return;
-          const m = line.match(SEP);
-          if (!m) bad.push(raw.trim());
-          else
-            push(
-              line.slice(0, m.index),
-              line.slice(m.index + m[0].length),
-              raw.trim(),
-            );
-        });
-        return { pairs, bad };
-      }
-      async function importBulk() {
-        const text = $("#bulkText").value;
-        if (!text.trim()) return hint("Вставьте список слов.");
-        const { pairs, bad } = parseBulk(text);
-        try {
-          const r = await addWords(pairs);
-          $("#bulkText").value = bad.join("\n"); // остаются только нераспознанные строки
-          hint(
-            `Добавлено: ${r.added}` +
-              (r.dup ? `, повторов пропущено: ${r.dup}` : "") +
-              (bad.length
-                ? `, не распознано: ${bad.length} (оставлены в поле)`
-                : ""),
-          );
-        } catch (e) {
-          hint(e.message);
-        }
-      }
-      $("#tabOne").onclick = () => showTab("one");
-      $("#tabBulk").onclick = () => showTab("bulk");
-      $("#btnAdd").onclick = addWord;
-      $("#btnImport").onclick = importBulk;
-      $("#modalClose").onclick = closeModal;
-      modal.addEventListener("click", (e) => {
-        if (e.target === modal) closeModal();
-      });
-      inEn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          inRu.focus();
-        }
-      });
-      inRu.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          addWord();
-        }
-      });
-
-      /* ============ КЛАВИАТУРА И ЗАПУСК ============ */
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && S.modalId) return closeModal();
-        if (S.view !== "study" || S.mode !== "cards" || S.modalId) return;
-        if (e.code === "Space") {
-          e.preventDefault();
-          flipCard();
-        } else if (e.key === "ArrowLeft") answer(false);
-        else if (e.key === "ArrowRight") answer(true);
-      });
-      boot();
-    </script>
-  </body>
+    <button data-rm="${c.id}" class="text-slate-500 hover:text-red-400 text-lg px-2" aria-label="Удалить слово">×</button></li>`).join('');
+  $('#wordList').querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+    try { await api('/api/cards/' + b.dataset.rm, 'DELETE'); t.cards = t.cards.filter(c => c.id !== b.dataset.rm); renderWordList(); } catch (e) { fail(e); }
+  });
+}
+function showTab(which) {
+  const bulk = which === 'bulk';
+  $('#paneOne').classList.toggle('hidden', bulk); $('#paneBulk').classList.toggle('hidden', !bulk);
+  $('#tabOne').className = 'flex-1 rounded-lg py-2 text-sm font-bold ' + (bulk ? 'text-slate-400 hover:text-white' : 'bg-accent text-ink');
+  $('#tabBulk').className = 'flex-1 rounded-lg py-2 text-sm font-bold ' + (bulk ? 'bg-accent text-ink' : 'text-slate-400 hover:text-white');
+  hint(''); (bulk ? $('#bulkText') : inEn).focus();
+}
+/** Отправка слов на сервер: пропускает повторы, шлёт пачками по 400 */
+async function addWords(pairs) {
+  const t = curTopic(), have = new Set(t.cards.map(c => c.en.toLowerCase())), fresh = [];
+  let dup = 0;
+  pairs.forEach(p => { const k = p.en.toLowerCase(); if (have.has(k)) dup++; else { have.add(k); fresh.push(p); } });
+  for (let i = 0; i < fresh.length; i += 400) {
+    const r = await api('/api/topics/' + t.id + '/cards', 'POST', { cards: fresh.slice(i, i + 400) });
+    t.cards.push(...r.cards);
+  }
+  renderWordList();
+  return { added: fresh.length, dup };
+}
+async function addWord() {
+  const en = inEn.value.trim(), ru = inRu.value.trim();
+  if (!en || !ru) { hint('Заполните оба поля.'); return (en ? inRu : inEn).focus(); }
+  try {
+    const r = await addWords([{ en, ru }]);
+    hint(r.dup ? 'Такое слово уже есть.' : 'Добавлено: ' + en);
+    inEn.value = inRu.value = '';
+  } catch (e) { hint(e.message); }
+  inEn.focus();                                     // сразу вводим следующее слово
+}
+/** Разбор списка: строки «слово - перевод» или JSON */
+function parseBulk(text) {
+  const pairs = [], bad = [], t = text.trim();
+  const push = (en, ru, src) => { en = String(en ?? '').trim(); ru = String(ru ?? '').trim(); if (en && ru) pairs.push({ en, ru }); else bad.push(src); };
+  if (t.startsWith('[') || t.startsWith('{')) {
+    try {
+      const d = JSON.parse(t);
+      if (Array.isArray(d)) d.forEach(it => Array.isArray(it) ? push(it[0], it[1], JSON.stringify(it))
+        : it && typeof it === 'object' ? push(it.en ?? it.english ?? it.word, it.ru ?? it.translation, JSON.stringify(it)) : bad.push(String(it)));
+      else if (d && (d.en || d.ru)) push(d.en, d.ru, t);
+      else if (d && typeof d === 'object') Object.entries(d).forEach(([k, v]) => push(k, v, k));
+      return { pairs, bad };
+    } catch (e) { /* не JSON — читаем как строки */ }
+  }
+  const SEP = /\t|\s*[|;=:—–]\s*|\s+-\s+/;
+  t.split(/\r?\n/).forEach(raw => {
+    const line = raw.trim().replace(/^(\d+[.)]|[-*•])\s+/, '');
+    if (!line) return;
+    const m = line.match(SEP);
+    if (!m) bad.push(raw.trim()); else push(line.slice(0, m.index), line.slice(m.index + m[0].length), raw.trim());
+  });
+  return { pairs, bad };
+}
+async function importBulk() {
+  const text = $('#bulkText').value;
+  if (!text.trim()) return hint('Вставьте список слов.');
+  const { pairs, bad } = parseBulk(text);
+  try {
+    const r = await addWords(pairs);
+    $('#bulkText').value = bad.join('\n');          // остаются только нераспознанные строки
+    hint(`Добавлено: ${r.added}` + (r.dup ? `, повторов пропущено: ${r.dup}` : '') + (bad.length ? `, не распознано: ${bad.length} (оставлены в поле)` : ''));
+  } catch (e) { hint(e.message); }
+}
+$('#tabOne').onclick = () => showTab('one'); $('#tabBulk').onclick = () => showTab('bulk');
+$('#btnAdd').onclick = addWord; $('#btnImport').onclick = importBulk; $('#modalClose').onclick = closeModal;
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+inEn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inRu.focus(); } });
+inRu.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addWord(); } });
+ 
+/* ============ КЛАВИАТУРА И ЗАПУСК ============ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && S.modalId) return closeModal();
+  if (S.view !== 'study' || S.mode !== 'cards' || S.modalId) return;
+  if (e.code === 'Space') { e.preventDefault(); flipCard(); }
+  else if (e.key === 'ArrowLeft') answer(false);
+  else if (e.key === 'ArrowRight') answer(true);
+});
+/* ============ СВАЙП МЕЖДУ РАЗДЕЛАМИ («Мои» / «Публичные» / «Админ») ============ */
+let sx = 0, sy = 0, st = 0, swipeOk = false;
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  sx = t.clientX; sy = t.clientY; st = Date.now();
+  // Свайп работает на экранах с разделами, не в окне слов и не в полях ввода.
+  // От самого края экрана не считаем: там системный жест «Назад».
+  swipeOk = e.touches.length === 1 && tabKeys && S.me && ['topics', 'public', 'admin'].includes(S.view)
+    && !S.modalId && sx > 20 && sx < innerWidth - 20
+    && !e.target.closest('input, textarea, select');
+}, { passive: true });
+document.addEventListener('touchcancel', () => { swipeOk = false; }, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!swipeOk) return;
+  swipeOk = false;
+  const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+  // Нужен явный горизонтальный жест: достаточно длинный, быстрый и не вертикальная прокрутка
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - st > 700) return;
+  const keys = tabKeys(), j = keys.indexOf(S.view) + (dx < 0 ? 1 : -1);
+  if (j >= 0 && j < keys.length) goTab(keys[j]);
+}, { passive: true });
+ 
+boot();
+</script>
+</body>
 </html>
