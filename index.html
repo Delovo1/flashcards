@@ -38,7 +38,7 @@
 </head>
 <body class="min-h-screen font-ui">
 <div id="app" class="max-w-3xl mx-auto px-4 py-6 sm:py-10"></div>
- 
+
 <!-- Окно добавления слов -->
 <div id="modal" class="hidden fixed inset-0 z-50 bg-black/70 items-end sm:items-center justify-center p-0 sm:p-4">
   <div class="bg-panel border border-line w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-h-[90vh] flex flex-col">
@@ -67,13 +67,13 @@
     <ul id="wordList" class="mt-1 overflow-y-auto divide-y divide-line"></ul>
   </div>
 </div>
- 
+
 <script>
 'use strict';
- 
+
 /* ============ НАСТРОЙКА: адрес вашего Worker (после деплоя) ============ */
 const API_URL = 'https://flashcards-api.delovo1.workers.dev';
- 
+
 /* ============ СОСТОЯНИЕ ============ */
 const S = {
   token: localStorage.getItem('fc.token'),
@@ -81,7 +81,8 @@ const S = {
   view: 'topics',          // topics | public | admin | study | done
   back: 'topics',          // куда вернуться из режима учёбы
   deck: null, queue: [], total: 0, mode: 'cards', flipped: false, busy: false, checked: null,
-  modalId: null
+  modalId: null,
+  offline: false         // true — нет связи с сервером, работаем по сохранённой копии
 };
 const $ = s => document.querySelector(s);
 const app = $('#app');
@@ -90,9 +91,18 @@ const fail = e => alert(e.message || 'Ошибка');
 function plural(n) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'слово' : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? 'слова' : 'слов'; }
 function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const norm = s => s.toLowerCase().replace(/[’`]/g, "'").replace(/[.!?,]+$/, '').replace(/\s+/g, ' ').trim();
- 
+
+/* ============ ЛОКАЛЬНАЯ КОПИЯ (для режима без интернета) ============ */
+const CACHE_KEY = 'fc.cache';
+function saveCache() { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ me: S.me, topics: S.topics })); } catch (e) {} }
+function loadCache() {
+  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY)); return c && c.me && Array.isArray(c.topics) ? c : null; }
+  catch (e) { return null; }
+}
+
 /* ============ ЗАПРОСЫ К СЕРВЕРУ ============ */
-async function api(path, method = 'GET', body) {
+async function api(path, method = 'GET', body, o = {}) {
+  if (S.offline) throw new Error('Нет сети. Это действие доступно только онлайн.');
   const opts = {
     method,
     headers: { Authorization: 'Bearer ' + S.token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
@@ -101,8 +111,8 @@ async function api(path, method = 'GET', body) {
   // Нестабильная сеть: запросы на чтение пробуем до 3 раз, каждый с таймаутом 12 с.
   // Запросы на запись не повторяем, чтобы не создать дубли.
   let r;
-  for (let i = 0; i < (method === 'GET' ? 3 : 1) && !r; i++) {
-    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 12000);
+  for (let i = 0; i < (o.tries ?? (method === 'GET' ? 3 : 1)) && !r; i++) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), o.timeout ?? 12000);
     try { r = await fetch(API_URL + path, { ...opts, signal: ctl.signal }); }
     catch (e) { /* пробуем ещё раз */ }
     finally { clearTimeout(timer); }
@@ -113,8 +123,8 @@ async function api(path, method = 'GET', body) {
   if (!r.ok) throw new Error(data.error || 'Ошибка ' + r.status);
   return data;
 }
-function logout() { localStorage.removeItem('fc.token'); S.token = null; S.me = null; renderLogin(); }
- 
+function logout() { localStorage.removeItem('fc.token'); localStorage.removeItem(CACHE_KEY); S.token = null; S.me = null; S.offline = false; renderLogin(); }
+
 /* ============ ВХОД ============ */
 function renderLogin(msg = '') {
   app.innerHTML = `
@@ -133,23 +143,35 @@ function renderLogin(msg = '') {
     try {
       S.me = await api('/api/me');
       localStorage.setItem('fc.token', S.token);
-      S.topics = await api('/api/topics');
+      S.topics = await api('/api/topics'); saveCache();
       history.replaceState({ v: 'topics' }, ''); showView('topics');
     } catch (err) { S.token = null; renderLogin(err.message === 'Failed to fetch' ? 'Нет связи с сервером' : err.message); }
   };
 }
- 
+
 async function boot() {
   if (!S.token) return renderLogin();
-  try { S.me = await api('/api/me'); S.topics = await api('/api/topics'); history.replaceState({ v: 'topics' }, ''); showView('topics'); }
-  catch (e) {
-    if (!S.token) return;
+  S.offline = false;
+  try {
+    // Быстрая проверка связи: одна попытка, 7 секунд
+    S.me = await api('/api/me', 'GET', undefined, { tries: 1, timeout: 7000 });
+    S.topics = await api('/api/topics', 'GET', undefined, { tries: 1, timeout: 7000 });
+    saveCache();
+    history.replaceState({ v: 'topics' }, ''); showView('topics');
+  } catch (e) {
+    if (!S.token) return;                      // токен отозван — уже показан экран входа
+    const c = loadCache();
+    if (c) {                                   // нет сети, но есть сохранённая копия
+      S.me = c.me; S.topics = c.topics; S.offline = true;
+      history.replaceState({ v: 'topics' }, ''); showView('topics');
+      return;
+    }
     app.innerHTML = `<div class="text-center pt-24"><p class="text-slate-400 mb-4">Не удалось связаться с сервером.</p>
       <button id="retry" class="bg-accent text-ink font-bold rounded-xl px-6 py-3">Повторить</button></div>`;
     $('#retry').onclick = boot;
   }
 }
- 
+
 /* ============ КАРКАС И НАВИГАЦИЯ ============ */
 function shell(inner) {
   const tabs = [['topics', 'Мои'], ['public', 'Публичные'], ...(S.me.role === 'admin' ? [['admin', 'Админ']] : [])]
@@ -158,9 +180,10 @@ function shell(inner) {
     <header class="flex items-center justify-between gap-3 mb-5">
       <h1 class="brand text-4xl pb-1">Карточки</h1>
       <div class="flex items-center gap-3 text-sm text-slate-400"><span>${esc(S.me.name)}</span><button id="logout" class="hover:text-white">Выйти</button></div>
-    </header>
+    </header>${S.offline ? `<div class="bg-amber-500/15 border border-amber-500/40 text-amber-200 rounded-xl px-4 py-3 mb-4 text-sm flex items-center justify-between gap-3"><span>Нет сети: можно учить свои темы. Редактирование и публичные группы недоступны.</span><button id="goOnline" class="font-bold underline shrink-0">Повторить</button></div>` : ''}
     <nav class="flex gap-1 bg-panel border border-line rounded-xl p-1 mb-6">${tabs}</nav><div id="pane">${inner}</div>`;
   $('#logout').onclick = logout;
+  if (S.offline) $('#goOnline').onclick = boot;
   app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => goTab(b.dataset.tab));
 }
 const tabKeys = () => ['topics', 'public', ...(S.me && S.me.role === 'admin' ? ['admin'] : [])];
@@ -183,7 +206,7 @@ function showView(v) {
     pane.animate([{ transform: `translateX(${dir * 48}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
                  { duration: 220, easing: 'ease-out' });
 }
- 
+
 /* Системная кнопка/жест «Назад» (и в приложении, и в браузере): закрывает окно слов,
    выходит из тренировки в раздел, а из первого раздела — уже из приложения */
 window.addEventListener('popstate', e => {
@@ -193,30 +216,32 @@ window.addEventListener('popstate', e => {
   if (!tabKeys().includes(v)) { v = 'topics'; history.replaceState({ v }, ''); }
   showView(v);
 });
- 
+
 /* ============ МОИ ТЕМЫ ============ */
 function renderTopics() {
+  saveCache();
+  const off = S.offline ? 'disabled' : '';
   const items = S.topics.map(t => `
     <li class="bg-panel border border-line rounded-2xl p-5 flex flex-col gap-4">
       <div class="flex items-start justify-between gap-2">
         <div><h3 class="text-lg font-bold leading-snug">${esc(t.name)}</h3><p class="text-slate-400 text-sm">${t.cards.length} ${plural(t.cards.length)}</p></div>
-        <button data-del="${t.id}" class="text-slate-500 hover:text-red-400 text-sm">Удалить</button>
+        <button data-del="${t.id}" ${off} class="text-slate-500 hover:text-red-400 text-sm disabled:opacity-30">Удалить</button>
       </div>
-      <label class="flex items-center gap-2 text-sm text-slate-400 cursor-pointer"><input type="checkbox" data-pub="${t.id}" ${t.isPublic ? 'checked' : ''}> Публичная (видна всем)</label>
+      <label class="flex items-center gap-2 text-sm text-slate-400 cursor-pointer"><input type="checkbox" data-pub="${t.id}" ${off} ${t.isPublic ? 'checked' : ''}> Публичная (видна всем)</label>
       <div class="grid grid-cols-2 gap-2 mt-auto">
         <button data-learn="${t.id}" ${t.cards.length ? '' : 'disabled'} class="bg-accent text-ink font-bold rounded-xl py-2.5 hover:brightness-110 transition disabled:opacity-30">Учить</button>
         <button data-type="${t.id}" ${t.cards.length ? '' : 'disabled'} class="border border-accent/60 text-accent font-bold rounded-xl py-2.5 hover:bg-accent/10 transition disabled:opacity-30">Писать</button>
-        <button data-addwords="${t.id}" class="col-span-2 border border-line rounded-xl py-2.5 hover:border-accent hover:text-accent transition">Добавить слова</button>
+        <button data-addwords="${t.id}" ${off} class="col-span-2 border border-line rounded-xl py-2.5 hover:border-accent hover:text-accent transition disabled:opacity-30">Добавить слова</button>
       </div>
     </li>`).join('');
   shell(`
     <form id="topicForm" class="flex flex-col sm:flex-row gap-3 mb-6">
-      <input id="topicName" type="text" placeholder="Название темы" maxlength="60" required class="flex-1 bg-panel border border-line rounded-xl px-4 py-3 outline-none focus:border-accent">
-      <button class="bg-accent text-ink font-bold rounded-xl px-6 py-3 hover:brightness-110 transition">Создать тему</button>
+      <input id="topicName" type="text" placeholder="Название темы" maxlength="60" required ${off} class="flex-1 bg-panel border border-line rounded-xl px-4 py-3 outline-none focus:border-accent">
+      <button ${off} class="bg-accent text-ink font-bold rounded-xl px-6 py-3 hover:brightness-110 transition disabled:opacity-30">Создать тему</button>
     </form>
     ${S.topics.length ? `<ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">${items}</ul>`
       : `<p class="text-slate-400 border border-dashed border-line rounded-2xl p-8 text-center">Тем пока нет. Создайте свою или скопируйте из раздела «Публичные».</p>`}`);
- 
+
   $('#topicForm').onsubmit = async e => {
     e.preventDefault();
     try { S.topics.push(await api('/api/topics', 'POST', { name: $('#topicName').value })); renderTopics(); } catch (err) { fail(err); }
@@ -235,7 +260,7 @@ function renderTopics() {
     try { await api('/api/topics/' + t.id, 'DELETE'); S.topics = S.topics.filter(x => x.id !== t.id); renderTopics(); } catch (err) { fail(err); }
   });
 }
- 
+
 /* ============ ПУБЛИЧНЫЕ (с поиском) ============ */
 function renderPublic() {
   shell(`
@@ -282,7 +307,7 @@ function fillPublic() {
       </div>
     </li>`).join('') : `<li class="sm:col-span-2 text-slate-400 border border-dashed border-line rounded-2xl p-8 text-center">${S.q ? 'Ничего не найдено.' : 'Публичных групп пока нет.'}</li>`;
 }
- 
+
 /* ============ АДМИН ============ */
 async function renderAdmin() {
   shell(`<div id="adm" class="text-slate-400">Загрузка…</div>`);
@@ -316,7 +341,7 @@ async function renderAdmin() {
     try { await api('/api/admin/users/' + b.dataset.rev, 'DELETE'); S.newToken = null; renderAdmin(); } catch (err) { fail(err); }
   });
 }
- 
+
 /* ============ УЧЁБА ============ */
 function startStudy(deck, mode, back) {
   if (!deck || !deck.cards.length) return;
@@ -335,7 +360,7 @@ function header(percent) {
     <p class="text-slate-500 text-sm mb-6">${esc(S.deck.name)}</p>`;
 }
 const pct = () => Math.round(((S.total - S.queue.length) / S.total) * 100);
- 
+
 function renderStudy() {
   if (S.mode === 'type') return renderType();
   const card = S.queue[0];
@@ -355,32 +380,34 @@ function renderStudy() {
   $('#back').onclick = goBack;
   bindDrag();
 }
- 
+
 /** Перетаскивание карточки: вправо — «Знаю», влево — «Не знаю», короткое касание — перевернуть */
 function bindDrag() {
   const scene = $('#scene'), wrap = $('#wrap'), yes = $('#hintYes'), no = $('#hintNo');
-  let x0 = 0, dx = 0, drag = false, moved = false;
+  let x0 = 0, dx = 0, t0 = 0, drag = false;
   const reset = () => { wrap.style.transition = ''; wrap.style.transform = ''; yes.style.opacity = no.style.opacity = 0; };
   scene.addEventListener('pointerdown', e => {
     if (S.busy) return;
-    drag = true; moved = false; x0 = e.clientX; dx = 0;
+    drag = true; x0 = e.clientX; dx = 0; t0 = Date.now();
     scene.setPointerCapture(e.pointerId);
     wrap.classList.remove('in-new'); wrap.style.transition = 'none';   // карточка идёт за пальцем без задержки
   });
   scene.addEventListener('pointermove', e => {
     if (!drag) return;
     dx = e.clientX - x0;
-    if (Math.abs(dx) > 8) moved = true;
     wrap.style.transform = `translateX(${dx}px) rotate(${dx / 25}deg)`;
-    yes.style.opacity = dx > 0 ? Math.min(1, dx / 100) : 0;
-    no.style.opacity = dx < 0 ? Math.min(1, -dx / 100) : 0;
+    yes.style.opacity = dx > 0 ? Math.min(1, dx / 60) : 0;
+    no.style.opacity = dx < 0 ? Math.min(1, -dx / 60) : 0;
   });
-  scene.addEventListener('pointerup', () => {
+  scene.addEventListener('pointerup', e => {
     if (!drag) return;
     drag = false;
-    if (!moved) { reset(); flipCard(); }                // тап
-    else if (Math.abs(dx) > 90) { reset(); answer(dx > 0); }   // достаточно далеко — ответ
-    else reset();                                       // не дотянули — возвращаем на место
+    // Берём координату в момент отпускания: у быстрых коротких свайпов почти нет промежуточных событий
+    dx = e.clientX - x0;
+    const dist = Math.abs(dx), speed = dist / Math.max(1, Date.now() - t0);   // скорость, px/мс
+    if (dist < 10) { reset(); flipCard(); }                                    // тап
+    else if (dist > 45 || (dist > 20 && speed > 0.3)) { reset(); answer(dx > 0); }   // длинный свайп или быстрый щелчок
+    else reset();                                                              // не дотянули — на место
   });
   scene.addEventListener('pointercancel', () => { drag = false; reset(); });
 }
@@ -400,7 +427,7 @@ function answer(known) {
     if (!S.queue.length) { S.view = 'done'; renderDone(); } else renderStudy();
   }, 320);
 }
- 
+
 /* Режим «впиши английское слово» */
 function renderType() {
   const card = S.queue[0], res = S.checked;
@@ -436,7 +463,7 @@ function nextTyped() {
   S.checked = null;
   if (!S.queue.length) { S.view = 'done'; renderDone(); } else renderType();
 }
- 
+
 function renderDone() {
   app.innerHTML = `
     <div class="text-center py-16 sm:py-24">
@@ -449,11 +476,11 @@ function renderDone() {
   $('#again').onclick = () => startStudy(S.deck, S.mode, S.back);
   $('#home').onclick = goBack;
 }
- 
+
 /* ============ ДОБАВЛЕНИЕ СЛОВ (окно) ============ */
 const modal = $('#modal'), inEn = $('#inEn'), inRu = $('#inRu'), hint = t => $('#modalHint').textContent = t;
 const curTopic = () => S.topics.find(t => t.id === S.modalId);
- 
+
 function openModal(id) {
   S.modalId = id;
   $('#modalTitle').textContent = 'Новые слова: ' + curTopic().name;
@@ -468,6 +495,7 @@ function closeModal(fromPop) {
   if (S.modalHist) { S.modalHist = false; if (!fromPop) history.back(); }   // «Назад» обновит список тем сам
 }
 function renderWordList() {
+  saveCache();
   const t = curTopic();
   $('#wordList').innerHTML = [...t.cards].reverse().map(c => `
     <li class="flex items-center justify-between gap-3 py-2"><span class="min-w-0 break-words"><b>${esc(c.en)}</b> <span class="text-slate-400">— ${esc(c.ru)}</span></span>
@@ -543,7 +571,7 @@ $('#btnAdd').onclick = addWord; $('#btnImport').onclick = importBulk; $('#modalC
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 inEn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inRu.focus(); } });
 inRu.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addWord(); } });
- 
+
 /* ============ КЛАВИАТУРА И ЗАПУСК ============ */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && S.modalId) return closeModal();
@@ -573,7 +601,13 @@ document.addEventListener('touchend', e => {
   const keys = tabKeys(), j = keys.indexOf(S.view) + (dx < 0 ? 1 : -1);
   if (j >= 0 && j < keys.length) goTab(keys[j]);
 }, { passive: true });
- 
+
+// Когда связь вернулась, сами пробуем загрузить свежие данные (если пользователь не в тренировке)
+window.addEventListener('online', () => { if (S.offline && S.me && tabKeys().includes(S.view) && !S.modalId) boot(); });
+
+// Service Worker: сайт и шрифты сохраняются на телефоне, поэтому приложение открывается и без сети
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
 boot();
 </script>
 </body>
